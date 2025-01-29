@@ -119,6 +119,7 @@ class LoginForm:
             cursor.execute("USE mydata")
             
             # Create table if not exists
+            #
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS login (
                     id INT AUTO_INCREMENT PRIMARY KEY,
