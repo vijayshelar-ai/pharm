@@ -152,7 +152,8 @@ class LoginSystem:
                          (self.reg_username.get(), self.reg_email.get()))
             
             if cursor.fetchone():
-                messagebox.showerror("Error", "Username or Email already exists!")
+                messagebox.showerror("Error", " Email already exists!")
+                
                 return
 
             # Generate and send OTP
