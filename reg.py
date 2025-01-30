@@ -112,7 +112,7 @@ class LoginSystem:
         frame.pack(pady=30)
 
         # Add registration fields with labels and styling
-        Label(frame, text="Username:", font=("Helvetica", 12, "bold"), bg='#f3f3f3', fg="#333").grid(row=0, column=0, padx=20, pady=10)
+        Label(frame, text="ID:", font=("Helvetica", 12, "bold"), bg='#f3f3f3', fg="#333").grid(row=0, column=0, padx=20, pady=10)
         Entry(frame, textvariable=self.reg_username, font=("Helvetica", 12), bd=2, relief="solid", width=20).grid(row=0, column=1, padx=20, pady=10)
 
         Label(frame, text="Password:", font=("Helvetica", 12, "bold"), bg='#f3f3f3', fg="#333").grid(row=1, column=0, padx=20, pady=10)
@@ -225,7 +225,7 @@ class LoginSystem:
                 self.root.destroy()
                 self.open_pharmacy()
             else:
-                messagebox.showerror("Error", "Invalid Username or Password!")
+                messagebox.showerror("Error", "Invalid ID or Password!")
                 
         except mysql.connector.Error as err:
             messagebox.showerror("Database Error", f"Error: {str(err)}")
