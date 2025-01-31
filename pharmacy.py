@@ -6,9 +6,15 @@ import mysql.connector
 from mysql.connector import connection
 
 class PharmacyManagementSystem:
-    def __init__(self, root):
+    def __init__(self, root, username=None):
+        if username is None:
+            messagebox.showerror("Access Denied", "Direct access not allowed. Please login first!")
+            root.destroy()
+            return
+            
         self.root = root
-        self.root.title("Pharmacy Management System")
+        self.username = username
+        self.root.title(f"Pharmacy Management System - Logged in as {username}")
         self.root.geometry("1550x800+0+0")
         
         #==================addmed=====================
@@ -67,7 +73,7 @@ class PharmacyManagementSystem:
         btnResetMed = Button(ButtonFrame,command=self.reset, text="RESET", font=("arial", 12, "bold"),bg="black", fg="white",)
         btnResetMed.grid(row=0, column=3) 
         
-        btnExitMed = Button(ButtonFrame,command=self.exit, text="EXIT", font=("arial", 12, "bold"),bg="darkgreen", fg="white",)
+        btnExitMed = Button(ButtonFrame,command=self.exit, text="LOGOUT", font=("arial", 12, "bold"),bg="darkgreen", fg="white",)
         btnExitMed.grid(row=0, column=4) 
         
         
@@ -758,17 +764,18 @@ class PharmacyManagementSystem:
                 connections.close()
                 
     def exit(self):
-        self.exit = messagebox.askyesno("Pharmacy Management System", "Do you want to exit the system")
+        self.exit = messagebox.askyesno("Pharmacy Management System", "Do you want to logout?")
         if self.exit > 0:
             self.root.destroy()
-            return
-        else:
-            return
+            # Optionally reopen login window
+            from reg import LoginSystem
+            root = Tk()
+            LoginSystem(root)
+            root.mainloop()
+        return
 
-    
-          
-
-if __name__== "__main__":
+if __name__ == "__main__":
+    # Prevent direct access
     root = Tk()
-    obj = PharmacyManagementSystem(root) 
-    root.mainloop()
+    messagebox.showerror("Access Denied", "Please login through the login system.")
+    root.destroy()
