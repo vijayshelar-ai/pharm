@@ -6,9 +6,15 @@ import mysql.connector
 from mysql.connector import connection
 
 class PharmacyManagementSystem:
-    def __init__(self, root):
+    def __init__(self, root, username=None):
+        if username is None:
+            messagebox.showerror("Access Denied", "Direct access not allowed. Please login first!")
+            root.destroy()
+            return
+            
         self.root = root
-        self.root.title("Pharmacy Management System")
+        self.username = username
+        self.root.title(f"Pharmacy Management System - Logged in as {username}")
         self.root.geometry("1550x800+0+0")
         
         #==================addmed=====================
@@ -48,6 +54,11 @@ class PharmacyManagementSystem:
         DataFrameLeft = LabelFrame(DataFrame, bd=15, relief=RIDGE, fg="darkgreen", font=("times new roman", 12, "bold"), text="MEDICINE INFORMATION")
         DataFrameLeft.place(x=0, y=4, width=700, height=355)
         
+        # Remove chatbot button from DataFrameLeft by commenting out or deleting these lines:
+        # btnChatBot = Button(DataFrameLeft, text="Ask Question", command=self.show_chatbot, 
+        #                   font=("arial", 12, "bold"), bg="blue", fg="white", width=10)
+        # btnChatBot.grid(row=4, column=3, pady=5, padx=5)
+
         DataFrameRight = LabelFrame(DataFrame, bd=15, relief=RIDGE, fg="darkgreen", font=("times new roman", 12, "bold"), text="MEDICINE ADD DEPARTMENT")
         DataFrameRight.place(x=700, y=4, width=545, height=355)
         
@@ -67,7 +78,7 @@ class PharmacyManagementSystem:
         btnResetMed = Button(ButtonFrame,command=self.reset, text="RESET", font=("arial", 12, "bold"),bg="black", fg="white",)
         btnResetMed.grid(row=0, column=3) 
         
-        btnExitMed = Button(ButtonFrame,command=self.exit, text="EXIT", font=("arial", 12, "bold"),bg="darkgreen", fg="white",)
+        btnExitMed = Button(ButtonFrame,command=self.exit, text="LOGOUT", font=("arial", 12, "bold"),bg="darkgreen", fg="white",)
         btnExitMed.grid(row=0, column=4) 
         
         
@@ -91,10 +102,10 @@ class PharmacyManagementSystem:
         btnSearchMed = Button(ButtonFrame,command=self.search_data, text="SEARCH", font=("arial", 12, "bold"),bg="blue", fg="white")
         btnSearchMed.grid(row=0, column=8) 
         
-        btnShowMed = Button(ButtonFrame,command=self.fetchh_data,text="SHOW ALL", font=("arial", 12, "bold"),bg="red", fg="white")
+        btnShowMed = Button(ButtonFrame,command=self.fetchh_data,text="SHOW ALL", font=("arial", 12, "bold"),width=8,bg="red", fg="white")
         btnShowMed.grid(row=0, column=9) 
         
-        btnRefresh = Button(ButtonFrame, text="REFRESH", font=("arial", 12, "bold"), bg="blue", fg="white",width=9, command=self.refresh_frames)
+        btnRefresh = Button(ButtonFrame, text="REFRESH", font=("arial", 12, "bold"), bg="blue", fg="white",width=7, command=self.refresh_frames)
         btnRefresh.grid(row=0, column=10)
         
         
@@ -296,28 +307,29 @@ class PharmacyManagementSystem:
         
         #===========medicine add buttons====
         
-        down_frame=Frame(DataFrameRight,bd=3,relief=RIDGE,bg="white")
-        down_frame.place(x=400,y=154,width=115,height=163)
+        down_frame = Frame(DataFrameRight, bd=2, relief=RIDGE, bg="white")
+        down_frame.place(x=400, y=120, width=120, height=190)  # Changed y from 150 to 120 to move frame up
         
-        btnAddmed = Button(down_frame, text="ADD", font=("arial", 12, "bold"), bg="green", fg="white", width=10, pady=4, command=self.AddMed)
-        btnAddmed.grid(row=0, column=0)
+        # Add buttons with reduced padding to fit better
+        button_configs = [
+            ("ASK AI", "blue", self.show_chatbot),
+            ("ADD", "green", self.AddMed),
+            ("UPDATE", "purple", self.UpdateMed),
+            ("DELETE", "red", self.DeleteMed),
+            ("CLEAR", "orange", self.ClearMed)
+        ]
         
-        #==========update button=======
-        
-        btnUpdatedMed = Button(down_frame, command=self.UpdateMed, text="UPDATE", font=("arial", 12, "bold"), bg="purple", fg="white", width=10, pady=4)
-        btnUpdatedMed.grid(row=1, column=0)
-        
-      
-        #==========delete button=======
-        
-        btndelmed= Button(down_frame, command=self.DeleteMed, text="DELETE", font=("arial", 12, "bold"), bg="red", fg="white", width=10, pady=4)       
-        btndelmed.grid(row=2, column=0)
-        
-        #=========clear button=======
-         
-        btnClearmed= Button(down_frame,text="CLEAR",command=self.ClearMed,font=("arial", 12, "bold"),bg="Orange", fg="white",width=10,pady=4)
-        btnClearmed.grid(row=3,column=0)
-        
+        for idx, (text, color, command) in enumerate(button_configs):
+            btn = Button(down_frame, 
+                        text=text,
+                        command=command,
+                        font=("arial", 11, "bold"),
+                        bg=color,
+                        fg="white",
+                        width=11,
+                        pady=2)  # Reduced pady from 4 to 3
+            btn.grid(row=idx, column=0, padx=3, pady=1)  # Reduced pady from 3 to 2
+
         #=========underground frame======
         FRAMEDETAILS=Frame(self.root,bd=8,relief=RIDGE,bg="white")
         FRAMEDETAILS.place(x=0, y=570, width=1275, height=130)
@@ -643,9 +655,6 @@ class PharmacyManagementSystem:
         if row:
             self.ref_var.set(row[0])
             self.company_var.set(row[1])
-            self.type_var.set(row[2])
-            self.MedName_var.set(row[3])
-            self.lot_var.set(row[4])
             self.issue_date_var.set(row[5])
             self.exp_date_var.set(row[6])
             self.uses_var.set(row[7])
@@ -758,17 +767,202 @@ class PharmacyManagementSystem:
                 connections.close()
                 
     def exit(self):
-        self.exit = messagebox.askyesno("Pharmacy Management System", "Do you want to exit the system")
+        self.exit = messagebox.askyesno("Pharmacy Management System", "Do you want to logout?")
         if self.exit > 0:
             self.root.destroy()
-            return
-        else:
-            return
+            # Optionally reopen login window
+            from reg import LoginSystem
+            root = Tk()
+            LoginSystem(root)
+            root.mainloop()
+        return
 
-    
-          
+    def get_medicine_info(self, search_term):
+        try:
+            connections = connection.MySQLConnection(
+                host="localhost",
+                user="root",
+                password="root",
+                database="mydata"
+            )
+            my_cursor = connections.cursor(dictionary=True)
+            
+            # Search across multiple columns
+            query = """
+            SELECT * FROM pharmacy 
+            WHERE med_name LIKE %s 
+            OR ref LIKE %s 
+            OR company_name LIKE %s
+            LIMIT 1
+            """
+            search_pattern = f"%{search_term}%"
+            my_cursor.execute(query, (search_pattern, search_pattern, search_pattern))
+            result = my_cursor.fetchone()
+            
+            connections.close()
+            return result
+        except Exception as e:
+            print(f"Database error: {str(e)}")
+            return None
 
-if __name__== "__main__":
+    def process_question(self, question):
+        question = question.lower().strip()
+        
+        # General greetings
+        if any(word in question for word in ["hello", "hi", "hey"]):
+            return "Hello! How can I help you with your pharmacy queries today?"
+        
+        # Look for price related questions
+        if "price" in question or "cost" in question:
+            for word in question.split():
+                if med_info := self.get_medicine_info(word):
+                    return f"The price of {med_info['med_name']} is ${med_info['price']}"
+            return "Could you please specify which medicine's price you'd like to know?"
+        
+        # Look for precaution related questions
+        if "precaution" in question or "warning" in question:
+            for word in question.split():
+                if med_info := self.get_medicine_info(word):
+                    return f"Precautions for {med_info['med_name']}: {med_info['precaution']}"
+            return "Please specify which medicine's precautions you'd like to know about."
+        
+        # Look for side effects
+        if "side effect" in question or "side-effect" in question:
+            for word in question.split():
+                if med_info := self.get_medicine_info(word):
+                    return f"Side effects of {med_info['med_name']}: {med_info['side_effects']}"
+            return "Which medicine's side effects would you like to know about?"
+        
+        # Look for dosage information
+        if "dose" in question or "dosage" in question:
+            for word in question.split():
+                if med_info := self.get_medicine_info(word):
+                    return f"Dosage for {med_info['med_name']}: {med_info['dosage']}"
+            return "Please specify which medicine's dosage you'd like to know about."
+        
+        # Look for uses/indications
+        if "use" in question or "used for" in question:
+            for word in question.split():
+                if med_info := self.get_medicine_info(word):
+                    return f"Uses of {med_info['med_name']}: {med_info['uses']}"
+            return "Which medicine's uses would you like to know about?"
+        
+        # Look for expiry date
+        if "expiry" in question or "expiration" in question:
+            for word in question.split():
+                if med_info := self.get_medicine_info(word):
+                    return f"Expiry date of {med_info['med_name']}: {med_info['exp_date']}"
+            return "Which medicine's expiry date would you like to know about?"
+        
+        # Check stock/quantity
+        if "stock" in question or "available" in question or "quantity" in question:
+            for word in question.split():
+                if med_info := self.get_medicine_info(word):
+                    return f"Current stock of {med_info['med_name']}: {med_info['product_qt']} units"
+            return "Which medicine's stock level would you like to know about?"
+
+        # General medicine information
+        for word in question.split():
+            if med_info := self.get_medicine_info(word):
+                return f"""Information about {med_info['med_name']}:
+- Price: ${med_info['price']}
+- Dosage: {med_info['dosage']}
+- Uses: {med_info['uses']}
+- Side Effects: {med_info['side_effects']}
+- Precautions: {med_info['precaution']}
+- Stock Available: {med_info['product_qt']} units"""
+        
+        return "I'm not sure about that. You can ask me about medicine prices, dosages, side effects, precautions, or stock availability."
+
+    def show_chatbot(self):
+        chat_window = Toplevel(self.root)
+        chat_window.title("Smart Pharmacy Assistant")
+        chat_window.geometry("600x500")
+        
+        # Create main frame
+        main_frame = Frame(chat_window)
+        main_frame.pack(fill=BOTH, expand=True, padx=10, pady=5)
+        
+        # Create chat display with scrollbar
+        chat_frame = Frame(main_frame)
+        chat_frame.pack(fill=BOTH, expand=True)
+        
+        chat_display = Text(chat_frame, wrap=WORD, width=60, height=20)
+        scrollbar = ttk.Scrollbar(chat_frame, orient=VERTICAL, command=chat_display.yview)
+        chat_display.configure(yscrollcommand=scrollbar.set)
+        
+        scrollbar.pack(side=RIGHT, fill=Y)
+        chat_display.pack(side=LEFT, fill=BOTH, expand=True)
+        
+        # Create input area
+        input_frame = Frame(chat_window)
+        input_frame.pack(fill=X, padx=10, pady=5)
+        
+        user_input = Entry(input_frame, width=50)
+        user_input.pack(side=LEFT, fill=X, expand=True, padx=(0, 5))
+        
+        def handle_question():
+            question = user_input.get().strip()
+            if not question:
+                return
+            
+            # Add user question to chat
+            chat_display.configure(state='normal')
+            chat_display.insert(END, f"\nYou: {question}\n")
+            
+            # Get and display response
+            response = self.process_question(question)
+            chat_display.insert(END, f"Assistant: {response}\n")
+            
+            chat_display.configure(state='disabled')
+            chat_display.see(END)
+            user_input.delete(0, END)
+        
+        # Add buttons
+        send_button = Button(input_frame, text="Send", command=handle_question,
+                           font=("arial", 10, "bold"), bg="green", fg="white")
+        send_button.pack(side=LEFT, padx=5)
+        
+        def clear_chat():
+            chat_display.configure(state='normal')
+            chat_display.delete(1.0, END)
+            chat_display.insert(END, "Assistant: How can I help you today?\n")
+            chat_display.configure(state='disabled')
+        
+        # Add control buttons
+        button_frame = Frame(chat_window)
+        button_frame.pack(fill=X, padx=10, pady=5)
+        
+        clear_button = Button(button_frame, text="Clear Chat", command=clear_chat,
+                            font=("arial", 10, "bold"), bg="orange", fg="white")
+        clear_button.pack(side=LEFT, padx=5)
+        
+        close_button = Button(button_frame, text="Close", command=chat_window.destroy,
+                            font=("arial", 10, "bold"), bg="red", fg="white")
+        close_button.pack(side=LEFT, padx=5)
+        
+        # Bind Enter key
+        user_input.bind('<Return>', lambda event: handle_question())
+        
+        # Initial greeting
+        chat_display.configure(state='normal')
+        chat_display.insert(END, """Assistant: Hello! I can help you with:
+- Medicine prices
+- Dosage information
+- Side effects
+- Precautions
+- Stock availability
+- Expiry dates
+- General medicine information
+
+What would you like to know?\n""")
+        chat_display.configure(state='disabled')
+        
+        # Focus on input
+        user_input.focus()
+
+if __name__ == "__main__":
+    # Prevent direct access
     root = Tk()
-    obj = PharmacyManagementSystem(root) 
-    root.mainloop()
+    messagebox.showerror("Access Denied", "Please login through the login system.")
+    root.destroy()

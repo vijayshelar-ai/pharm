@@ -4,9 +4,6 @@ from tkinter import ttk
 from tkinter import messagebox
 import mysql.connector
 from mysql.connector import connection
-import openai
-import threading
-from datetime import datetime
 
 class PharmacyManagementSystem:
     def __init__(self, root, username=None):
