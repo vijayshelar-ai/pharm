@@ -97,10 +97,10 @@ class PharmacyManagementSystem:
         btnSearchMed = Button(ButtonFrame,command=self.search_data, text="SEARCH", font=("arial", 12, "bold"),bg="blue", fg="white")
         btnSearchMed.grid(row=0, column=8) 
         
-        btnShowMed = Button(ButtonFrame,command=self.fetchh_data,text="SHOW ALL", font=("arial", 12, "bold"),bg="red", fg="white")
+        btnShowMed = Button(ButtonFrame,command=self.fetchh_data,text="SHOW ALL", font=("arial", 12, "bold"),width=8,bg="red", fg="white")
         btnShowMed.grid(row=0, column=9) 
         
-        btnRefresh = Button(ButtonFrame, text="REFRESH", font=("arial", 12, "bold"), bg="blue", fg="white",width=9, command=self.refresh_frames)
+        btnRefresh = Button(ButtonFrame, text="REFRESH", font=("arial", 12, "bold"), bg="blue", fg="white",width=7, command=self.refresh_frames)
         btnRefresh.grid(row=0, column=10)
         
         
