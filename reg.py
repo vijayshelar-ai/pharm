@@ -89,6 +89,7 @@ class LoginSystem:
         self.login_password = StringVar()
         self.otp = StringVar()
         self.generated_otp = ""
+        self.forgot_password_email = StringVar() # Add this line
 
     def _create_main_container(self):
         self.main_container = Frame(self.root, bg='#f5f6fa')
@@ -117,6 +118,7 @@ class LoginSystem:
         self._create_input_field("Username", self.login_username)
         self._create_input_field("Password", self.login_password, show="●")
         self._create_login_button()
+        self._create_forgot_password_link() # Add this line
 
     def _create_input_field(self, label_text, variable, show=None):
         Label(
@@ -152,6 +154,365 @@ class LoginSystem:
         )
         self.login_btn.on_hover_color = '#2980b9'
         self.login_btn.pack(pady=30)
+
+    def _create_forgot_password_link(self):
+        """Create 'Forgot Password' link"""
+        forgot_password_btn = Button(
+            self.login_frame,
+            text="Forgot Password?",
+            command=self.show_forgot_password_window,
+            font=("Helvetica", 9),
+            bg='white',
+            fg='#3498db',
+            border=0,
+            cursor='hand2',
+            activeforeground='#2980b9',
+            relief="flat"
+        )
+        forgot_password_btn.pack(pady=(5, 20))
+
+    def show_forgot_password_window(self):
+        """Show forgot password window"""
+        self.forgot_password_window = Toplevel(self.root)
+        self.forgot_password_window.title("Forgot Password")
+        self.forgot_password_window.geometry("400x250+550+200")
+        self.forgot_password_window.config(bg='#f5f6fa')
+        self.forgot_password_window.resizable(False, False)
+
+        # Main container
+        container = Frame(
+            self.forgot_password_window,
+            bg='white',
+            highlightthickness=1,
+            highlightbackground='#e0e0e0'
+        )
+        container.place(relx=0.5, rely=0.5, width=350, height=200, anchor=CENTER)
+
+        # Title
+        title_label = FadeLabel(
+            container,
+            text="Forgot Password",
+            font=("Helvetica", 18, "bold"),
+            bg='white',
+            fg='#2c3e50'
+        )
+        title_label.pack(pady=(20, 10))
+
+        # Email input
+        email_label = Label(
+            container,
+            text="Enter your email:",
+            font=("Helvetica", 10),
+            bg='white',
+            fg='#7f8c8d'
+        )
+        email_label.pack(pady=(5, 0))
+
+        self.forgot_password_email_entry = AnimatedEntry(
+            container,
+            textvariable=self.forgot_password_email,
+            font=("Helvetica", 12),
+            width=30
+        )
+        self.forgot_password_email_entry.pack(pady=5)
+
+        # Send OTP Button
+        send_otp_btn = AnimatedButton(
+            container,
+            text="Send OTP",
+            command=self.send_otp_for_password_reset,
+            font=("Helvetica", 12, "bold"),
+            bg='#2ecc71',
+            fg='white',
+            width=15,
+            height=1,
+            border=0,
+            cursor='hand2'
+        )
+        send_otp_btn.on_hover_color = '#27ae60'
+        send_otp_btn.pack(pady=20)
+
+    def send_otp_for_password_reset(self):
+        """Send OTP to email for password reset"""
+        email = self.forgot_password_email.get().strip()
+        if not email:
+            messagebox.showerror("Error", "Please enter your email!")
+            return
+
+        try:
+            conn = connection.MySQLConnection(
+                host="localhost",
+                user="root",
+                password="root",
+                database="mydata"
+            )
+            cursor = conn.cursor()
+
+            # Check if email exists
+            cursor.execute("SELECT * FROM login WHERE email = %s", (email,))
+            if not cursor.fetchone():
+                messagebox.showerror("Error", "Email not found!")
+                return
+
+            # Generate OTP
+            self.generated_otp = ''.join(random.choices(string.digits, k=6))
+            if self.send_otp_email(email, self.generated_otp):
+                messagebox.showinfo("Success", "OTP has been sent to your email!")
+                self.show_otp_window_for_password_reset()
+
+        except mysql.connector.Error as err:
+            messagebox.showerror("Database Error", f"Error: {str(err)}")
+        finally:
+            if 'conn' in locals() and conn.is_connected():
+                cursor.close()
+                conn.close()
+
+    def show_otp_window_for_password_reset(self):
+        """Show OTP verification window for password reset"""
+        self.otp_window = Toplevel(self.forgot_password_window)
+        self.otp_window.title("Verify OTP")
+        self.otp_window.geometry("400x300+550+200")
+        self.otp_window.config(bg='#f5f6fa')
+        self.otp_window.resizable(False, False)
+
+        # Main container
+        container = Frame(
+            self.otp_window,
+            bg='white',
+            highlightthickness=1,
+            highlightbackground='#e0e0e0'
+        )
+        container.place(relx=0.5, rely=0.5, width=350, height=250, anchor=CENTER)
+
+        # Title
+        title_label = FadeLabel(
+            container,
+            text="OTP Verification",
+            font=("Helvetica", 18, "bold"),
+            bg='white',
+            fg='#2c3e50'
+        )
+        title_label.pack(pady=(30, 10))
+
+        # Email display
+        email_label = Label(
+            container,
+            text=f"OTP sent to: {self.forgot_password_email.get()}",
+            font=("Helvetica", 10),
+            bg='white',
+            fg='#7f8c8d'
+        )
+        email_label.pack(pady=5)
+
+        # OTP Entry
+        otp_frame = Frame(container, bg='white')
+        otp_frame.pack(pady=20)
+
+        self.otp_entry = AnimatedEntry(
+            otp_frame,
+            textvariable=self.otp,
+            font=("Helvetica", 24),
+            width=6,
+            justify='center'
+        )
+        self.otp_entry.pack()
+        self.otp_entry.focus()
+
+        # Verify Button
+        verify_btn = AnimatedButton(
+            container,
+            text="Verify OTP",
+            command=self.verify_otp_for_password_reset,
+            font=("Helvetica", 12, "bold"),
+            bg='#2ecc71',
+            fg='white',
+            width=15,
+            height=1,
+            border=0,
+            cursor='hand2'
+        )
+        verify_btn.on_hover_color = '#27ae60'
+        verify_btn.pack(pady=20)
+
+        # Resend OTP option
+        resend_frame = Frame(container, bg='white')
+        resend_frame.pack(pady=5)
+
+        Label(
+            resend_frame,
+            text="Didn't receive the code?",
+            font=("Helvetica", 9),
+            bg='white',
+            fg='#7f8c8d'
+        ).pack(side=LEFT, padx=2)
+
+        resend_btn = Label(
+            resend_frame,
+            text="Resend OTP",
+            font=("Helvetica", 9, "bold"),
+            bg='white',
+            fg='#3498db',
+            cursor='hand2'
+        )
+        resend_btn.pack(side=LEFT)
+        resend_btn.bind('<Button-1>', lambda e: self.resend_otp_for_password_reset())
+
+    def resend_otp_for_password_reset(self):
+        """Resend OTP for password reset"""
+        email = self.forgot_password_email.get().strip()
+        if not email:
+            messagebox.showerror("Error", "Please enter your email!")
+            return
+
+        self.generated_otp = ''.join(random.choices(string.digits, k=6))
+        if self.send_otp_email(email, self.generated_otp):
+            messagebox.showinfo("Success", "New OTP has been sent!")
+            self.otp.set("")  # Clear OTP field
+            self.otp_entry.focus()
+
+    def verify_otp_for_password_reset(self):
+        """Verify OTP and show new password window"""
+        entered_otp = self.otp.get().strip()
+        if not entered_otp:
+            messagebox.showerror("Error", "Please enter OTP")
+            return
+
+        if entered_otp == self.generated_otp:
+            self.show_new_password_window()
+        else:
+            messagebox.showerror("Error", "Invalid OTP!")
+            self.otp.set("")  # Clear OTP field
+            self.otp_entry.focus()
+
+    def show_new_password_window(self):
+        """Show window to enter new password"""
+        self.new_password_window = Toplevel(self.otp_window)
+        self.new_password_window.title("Reset Password")
+        self.new_password_window.geometry("400x300+550+200")
+        self.new_password_window.config(bg='#f5f6fa')
+        self.new_password_window.resizable(False, False)
+
+        # Main container
+        container = Frame(
+            self.new_password_window,
+            bg='white',
+            highlightthickness=1,
+            highlightbackground='#e0e0e0'
+        )
+        container.place(relx=0.5, rely=0.5, width=350, height=250, anchor=CENTER)
+
+        # Title
+        title_label = FadeLabel(
+            container,
+            text="Reset Password",
+            font=("Helvetica", 18, "bold"),
+            bg='white',
+            fg='#2c3e50'
+        )
+        title_label.pack(pady=(30, 10))
+
+        # New Password Input
+        new_password_label = Label(
+            container,
+            text="New Password:",
+            font=("Helvetica", 10),
+            bg='white',
+            fg='#7f8c8d'
+        )
+        new_password_label.pack(pady=(5, 0))
+
+        self.new_password = StringVar()
+        self.new_password_entry = AnimatedEntry(
+            container,
+            textvariable=self.new_password,
+            font=("Helvetica", 12),
+            width=30,
+            show="●"
+        )
+        self.new_password_entry.pack(pady=5)
+
+        # Confirm New Password Input
+        confirm_new_password_label = Label(
+            container,
+            text="Confirm New Password:",
+            font=("Helvetica", 10),
+            bg='white',
+            fg='#7f8c8d'
+        )
+        confirm_new_password_label.pack(pady=(5, 0))
+
+        self.confirm_new_password = StringVar()
+        self.confirm_new_password_entry = AnimatedEntry(
+            container,
+            textvariable=self.confirm_new_password,
+            font=("Helvetica", 12),
+            width=30,
+            show="●"
+        )
+        self.confirm_new_password_entry.pack(pady=5)
+
+        # Update Password Button
+        update_password_btn = AnimatedButton(
+            container,
+            text="Update Password",
+            command=self.update_password,
+            font=("Helvetica", 12, "bold"),
+            bg='#2ecc71',
+            fg='white',
+            width=15,
+            height=1,
+            border=0,
+            cursor='hand2'
+        )
+        update_password_btn.on_hover_color = '#27ae60'
+        update_password_btn.pack(pady=20)
+
+    def update_password(self):
+        """Update password in database"""
+        new_password = self.new_password.get().strip()
+        confirm_new_password = self.confirm_new_password.get().strip()
+
+        if not new_password or not confirm_new_password:
+            messagebox.showerror("Error", "Please enter both passwords!")
+            return
+
+        if new_password != confirm_new_password:
+            messagebox.showerror("Error", "Passwords do not match!")
+            return
+
+        try:
+            conn = connection.MySQLConnection(
+                host="localhost",
+                user="root",
+                password="root",
+                database="mydata"
+            )
+            cursor = conn.cursor()
+
+            # Update password
+            cursor.execute("UPDATE login SET password = %s WHERE email = %s",
+                           (new_password, self.forgot_password_email.get()))
+            conn.commit()
+
+            messagebox.showinfo("Success", "Password updated successfully!")
+
+            # Close windows
+            self.new_password_window.destroy()
+            self.otp_window.destroy()
+            self.forgot_password_window.destroy()
+
+            # Clear fields
+            self.forgot_password_email.set("")
+            self.new_password.set("")
+            self.confirm_new_password.set("")
+            self.otp.set("")
+
+        except mysql.connector.Error as err:
+            messagebox.showerror("Database Error", f"Error: {str(err)}")
+        finally:
+            if 'conn' in locals() and conn.is_connected():
+                cursor.close()
+                conn.close()
 
     def login_user(self):
         if self.login_username.get() == "" or self.login_password.get() == "":
