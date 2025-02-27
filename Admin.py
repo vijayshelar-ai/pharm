@@ -9,6 +9,7 @@ class AdminDashboard:
     def __init__(self, root):
         print("1. Starting AdminDashboard initialization")
         self.root = root
+        # 
         try:
             print("2. Setting window title")
             self.root.title("Admin Dashboard")
