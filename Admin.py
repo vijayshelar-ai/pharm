@@ -141,8 +141,7 @@ class AdminDashboard:
             else:
                 messagebox.showinfo("Info", "No records found in login table")
                 
-            conn.close()
-            
+            conn.close()# Close the connection            
         except mysql.connector.Error as err:
             messagebox.showerror("Database Error", f"Connection failed: {str(err)}")
             if 'conn' in locals():
