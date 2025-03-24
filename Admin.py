@@ -6,7 +6,11 @@ import sys
 import bcrypt
 
 class AdminDashboard:
-    def __init__(self, root):
+    def __init__(self, root, current_user):
+        if not current_user:
+            messagebox.showerror("Access Denied", "Please login first!")
+            sys.exit(1)
+        self.current_user = current_user
         print("1. Starting AdminDashboard initialization")
         self.root = root
         # 
@@ -573,8 +577,9 @@ if __name__ == "__main__":
     try:
         print("18. Starting main application")
         root = Tk()
+        current_user = None  # Ensure current_user is None when running directly
         print("19. Creating AdminDashboard instance")
-        obj = AdminDashboard(root)
+        obj = AdminDashboard(root, current_user)
         print("20. Starting mainloop")
         root.mainloop()
     except Exception as e:

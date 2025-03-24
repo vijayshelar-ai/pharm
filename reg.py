@@ -628,9 +628,12 @@ class LoginSystem:
 
     def open_admin_dashboard(self):
         """Open admin dashboard"""
+        if not self.is_logged_in:
+            messagebox.showerror("Access Denied", "Please login first!")
+            return
         import Admin
         root = Tk()
-        Admin.AdminDashboard(root)
+        Admin.AdminDashboard(root, self.current_user)  # Pass username to AdminDashboard
         root.mainloop()
 
     def open_pharmacy(self):
