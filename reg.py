@@ -8,6 +8,8 @@ import string
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import time
+import bcrypt  # Added for password encryption
+import re  # Add this for regular expression support
 
 class AnimatedButton(Button):
     def __init__(self, master, **kwargs):
@@ -89,7 +91,7 @@ class LoginSystem:
         self.login_password = StringVar()
         self.otp = StringVar()
         self.generated_otp = ""
-        self.forgot_password_email = StringVar() # Add this line
+        self.forgot_password_email = StringVar()
 
     def _create_main_container(self):
         self.main_container = Frame(self.root, bg='#f5f6fa')
@@ -118,7 +120,7 @@ class LoginSystem:
         self._create_input_field("Username", self.login_username)
         self._create_input_field("Password", self.login_password, show="●")
         self._create_login_button()
-        self._create_forgot_password_link() # Add this line
+        self._create_forgot_password_link()
 
     def _create_input_field(self, label_text, variable, show=None):
         Label(
@@ -143,7 +145,7 @@ class LoginSystem:
         self.login_btn = AnimatedButton(
             self.login_frame,
             text="Login",
-            command=self.login_user,  # This is now correctly referenced
+            command=self.login_user,
             font=("Helvetica", 12, "bold"),
             bg='#3498db',
             fg='white',
@@ -175,7 +177,7 @@ class LoginSystem:
         """Show forgot password window"""
         self.forgot_password_window = Toplevel(self.root)
         self.forgot_password_window.title("Forgot Password")
-        self.forgot_password_window.geometry("400x250+550+200")
+        self.forgot_password_window.geometry("400x300+550+200")
         self.forgot_password_window.config(bg='#f5f6fa')
         self.forgot_password_window.resizable(False, False)
 
@@ -186,7 +188,7 @@ class LoginSystem:
             highlightthickness=1,
             highlightbackground='#e0e0e0'
         )
-        container.place(relx=0.5, rely=0.5, width=350, height=200, anchor=CENTER)
+        container.place(relx=0.5, rely=0.5, width=350, height=250, anchor=CENTER)
 
         # Title
         title_label = FadeLabel(
@@ -197,6 +199,17 @@ class LoginSystem:
             fg='#2c3e50'
         )
         title_label.pack(pady=(20, 10))
+
+        # Account Type Selection
+        account_frame = Frame(container, bg='white')
+        account_frame.pack(pady=10)
+        
+        self.account_type = StringVar(value="user")
+        
+        Radiobutton(account_frame, text="User Account", variable=self.account_type, 
+                   value="user", bg='white').pack(side=LEFT, padx=10)
+        Radiobutton(account_frame, text="Admin Account", variable=self.account_type, 
+                   value="admin", bg='white').pack(side=LEFT, padx=10)
 
         # Email input
         email_label = Label(
@@ -248,8 +261,12 @@ class LoginSystem:
             )
             cursor = conn.cursor()
 
-            # Check if email exists
-            cursor.execute("SELECT * FROM login WHERE email = %s", (email,))
+            # Check if email exists based on account type
+            if self.account_type.get() == "admin":
+                cursor.execute("SELECT * FROM admin_login WHERE email = %s", (email,))
+            else:
+                cursor.execute("SELECT * FROM login WHERE email = %s", (email,))
+
             if not cursor.fetchone():
                 messagebox.showerror("Error", "Email not found!")
                 return
@@ -480,6 +497,9 @@ class LoginSystem:
             messagebox.showerror("Error", "Passwords do not match!")
             return
 
+        # Hash the new password
+        hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+
         try:
             conn = connection.MySQLConnection(
                 host="localhost",
@@ -489,11 +509,15 @@ class LoginSystem:
             )
             cursor = conn.cursor()
 
-            # Update password
-            cursor.execute("UPDATE login SET password = %s WHERE email = %s",
-                           (new_password, self.forgot_password_email.get()))
+            # Update password with hashed value based on account type
+            if self.account_type.get() == "admin":
+                cursor.execute("UPDATE admin_login SET password = %s WHERE email = %s",
+                           (hashed_password.decode('utf-8'), self.forgot_password_email.get()))
+            else:
+                cursor.execute("UPDATE login SET password = %s WHERE email = %s",
+                           (hashed_password.decode('utf-8'), self.forgot_password_email.get()))
+            
             conn.commit()
-
             messagebox.showinfo("Success", "Password updated successfully!")
 
             # Close windows
@@ -528,21 +552,47 @@ class LoginSystem:
             )
             cursor = conn.cursor()
 
-            cursor.execute("""SELECT * FROM login 
-                            WHERE username = %s AND password = %s""", 
-                         (self.login_username.get(), self.login_password.get()))
-            
-            user = cursor.fetchone()
-            
-            if user:
-                self.is_logged_in = True  # Set login state
-                self.current_user = user[1]  # Store username
-                self.login_btn.config(text="Logging in...")
-                self.root.update()
-                time.sleep(0.5)
-                messagebox.showinfo("Success", "Login Successful!")
-                self.root.destroy()
-                self.open_pharmacy()
+            # Check admin_login table first
+            cursor.execute("SELECT password FROM admin_login WHERE username = %s", 
+                           (self.login_username.get(),))
+            admin_result = cursor.fetchone()
+
+            if admin_result:
+                stored_hashed_password = admin_result[0]
+                if bcrypt.checkpw(self.login_password.get().encode('utf-8'), stored_hashed_password.encode('utf-8')):
+                    self.is_logged_in = True
+                    self.current_user = self.login_username.get()
+                    self.login_btn.config(text="Logging in...")
+                    self.root.update()
+                    time.sleep(0.5)
+                    messagebox.showinfo("Success", "Admin Login Successful!")
+                    self.root.destroy()
+                    self.open_admin_dashboard()
+                    return
+                else:
+                    messagebox.showerror("Error", "Invalid Username or Password!")
+                    self.login_password.set("")
+                    return
+
+            # Check login table if not found in admin_login
+            cursor.execute("SELECT password FROM login WHERE username = %s", 
+                           (self.login_username.get(),))
+            user_result = cursor.fetchone()
+
+            if user_result:
+                stored_hashed_password = user_result[0]
+                if bcrypt.checkpw(self.login_password.get().encode('utf-8'), stored_hashed_password.encode('utf-8')):
+                    self.is_logged_in = True
+                    self.current_user = self.login_username.get()
+                    self.login_btn.config(text="Logging in...")
+                    self.root.update()
+                    time.sleep(0.5)
+                    messagebox.showinfo("Success", "Login Successful!")
+                    self.root.destroy()
+                    self.open_pharmacy()
+                else:
+                    messagebox.showerror("Error", "Invalid Username or Password!")
+                    self.login_password.set("")
             else:
                 messagebox.showerror("Error", "Invalid Username or Password!")
                 self.login_password.set("")
@@ -554,6 +604,38 @@ class LoginSystem:
                 cursor.close()
                 conn.close()
 
+    def send_otp_email(self, email, otp):
+        """Send OTP email - Placeholder implementation"""
+        try:
+            sender_email = "projectbooking665@gmail.com"  # Replace with your email
+            sender_password = "xdfs qnxo jhdn puyw"      # Replace with your password/app-specific password
+            
+            msg = MIMEMultipart()
+            msg['From'] = sender_email
+            msg['To'] = email
+            msg['Subject'] = "Your OTP Code"
+            
+            body = f"Your OTP code is: {otp}\nValid for 10 minutes."
+            msg.attach(MIMEText(body, 'plain'))
+            
+            with smtplib.SMTP('smtp.gmail.com', 587) as server:
+                server.starttls()
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+            return True
+        except Exception as e:
+            return False
+
+    def open_admin_dashboard(self):
+        """Open admin dashboard"""
+        if not self.is_logged_in:
+            messagebox.showerror("Access Denied", "Please login first!")
+            return
+        import Admin
+        root = Tk()
+        Admin.AdminDashboard(root, self.current_user)  # Pass username to AdminDashboard
+        root.mainloop()
+
     def open_pharmacy(self):
         if not self.is_logged_in:
             messagebox.showerror("Access Denied", "Please login first!")
@@ -561,7 +643,7 @@ class LoginSystem:
             
         import pharmacy
         root = Tk()
-        pharmacy.PharmacyManagementSystem(root, self.current_user)  # Pass username to pharmacy system
+        pharmacy.PharmacyManagementSystem(root, self.current_user)
         root.mainloop()
 
     def _create_separator(self):
@@ -695,6 +777,30 @@ class LoginSystem:
         )
         entry.pack(pady=5)
 
+    def validate_username(self, username):
+        """
+        Validate username:
+        - Only letters and numbers allowed
+        - Must be at least 3 characters long
+        - Must start with a letter
+        """
+        if not username:
+            return False, "Username cannot be empty"
+        
+        # Check if username starts with a letter
+        if not username[0].isalpha():
+            return False, "Username must start with a letter"
+            
+        # Check length
+        if len(username) < 3:
+            return False, "Username must be at least 3 characters long"
+            
+        # Check for special characters
+        if not re.match("^[a-zA-Z][a-zA-Z0-9]*$", username):
+            return False, "Username can only contain letters and numbers"
+            
+        return True, "Valid username"
+
     def initiate_registration(self):
         """Handle registration process"""
         if not all([
@@ -704,6 +810,12 @@ class LoginSystem:
             self.reg_email.get()
         ]):
             messagebox.showerror("Error", "All fields are required!")
+            return
+
+        # Validate username
+        is_valid, message = self.validate_username(self.reg_username.get())
+        if not is_valid:
+            messagebox.showerror("Invalid Username", message)
             return
 
         if self.reg_password.get() != self.reg_confirm_password.get():
@@ -730,55 +842,20 @@ class LoginSystem:
             # Send OTP
             self.generated_otp = ''.join(random.choices(string.digits, k=6))
             if self.send_otp_email(self.reg_email.get(), self.generated_otp):
-                messagebox.showinfo("Success", "OTP has been sent to your email!")
+                messagebox.showinfo("Success", "Verification code sent to your email!")
                 self.show_otp_window()
-            
-        except mysql.connector.Error as err:
-            messagebox.showerror("Database Error", f"Error: {str(err)}")
+                return True
+            else:
+                messagebox.showerror("Error", "Failed to send verification code. Please try again.")
+                return False
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to send verification code: {str(e)}")
+            return False
         finally:
             if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
-
-    def send_otp_email(self, email, otp):
-        """Send OTP verification email"""
-        try:
-            # Email configuration
-            sender_email = "projectbooking665@gmail.com"  # Replace with your email
-            sender_password = "xdfs qnxo jhdn puyw"  # Replace with your app password
-            
-            # Create message
-            message = MIMEMultipart()
-            message["From"] = sender_email
-            message["To"] = email
-            message["Subject"] = "Pharmacy Management System - Email Verification"
-
-            # Email body
-            body = f"""
-            Hello,
-
-            Your verification code is: {otp}
-
-            This code will expire in 10 minutes.
-            If you didn't request this code, please ignore this email.
-
-            Best regards,
-            Pharmacy Management System
-            """
-            message.attach(MIMEText(body, "plain"))
-
-            # Create SMTP session
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login(sender_email, sender_password)
-                server.send_message(message)
-
-            return True
-
-        except Exception as e:
-            print(f"Email Error: {str(e)}")
-            messagebox.showerror("Error", "Failed to send verification code. Please try again.")
-            return False
 
     def show_otp_window(self):
         """Show OTP verification window"""
@@ -895,11 +972,14 @@ class LoginSystem:
                 )
                 cursor = conn.cursor()
 
-                # Insert new user
+                # Hash the password before storing
+                hashed_password = bcrypt.hashpw(self.reg_password.get().encode('utf-8'), bcrypt.gensalt())
+
+                # Insert new user with hashed password
                 cursor.execute("""INSERT INTO login (username, password, email) 
                                 VALUES (%s, %s, %s)""", 
                              (self.reg_username.get(),
-                              self.reg_password.get(),
+                              hashed_password,
                               self.reg_email.get()))
                 
                 conn.commit()
